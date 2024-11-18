@@ -1,144 +1,114 @@
+import matplotlib
+matplotlib.use('Agg')  # Set backend to non-interactive
 import matplotlib.pyplot as plt
-
+import numpy as np
 from model.naivebayes import NaiveBayes, features1, features2
 from model.logreg import LogReg, featurize
 from evaluation import accuracy, f_1
 
-
 def train_smooth(train_data, test_data):
     """
-    Train classifier with different smoothing parameters and evaluate performance.
+    Train Naive Bayes with different smoothing parameters and evaluate performance.
     
     Args:
-        train_data: List of (document, label) tuples for training
-        test_data: List of (document, label) tuples for testing
+        train_data: Training dataset
+        test_data: Test dataset
     """
-    # Separate features and labels
-    X_train, y_train = zip(*train_data)
-    
     # Define range of k values to test (log scale)
-    k_values = np.logspace(-3, 2, 20)  # From 0.001 to 100
+    k_values = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+    
+    # Store results
     accuracies = []
     f1_scores = []
     
-    # Test each k value
+    # Train and evaluate for each k value
     for k in k_values:
-        # Initialize and train model with current k
-        clf = NaiveBayes(k=k)
-        clf.fit(X_train, y_train)
+        # Train classifier with current k
+        classifier = NaiveBayes.train(train_data, k=k)
         
-        # Evaluate model
-        acc = accuracy(clf, test_data)
-        f1 = f_1(clf, test_data)
+        # Evaluate performance
+        acc = accuracy(classifier, test_data)
+        f1 = f_1(classifier, test_data)
         
         accuracies.append(acc)
         f1_scores.append(f1)
+        
+        print(f"k={k:.4f}: Accuracy={acc:.4f}, F1={f1:.4f}")
+
+    # Create figure and axis objects
+    fig, ax = plt.subplots(figsize=(10, 6))
     
-    # Plot results
-    plt.figure(figsize=(10, 6))
-    plt.semilogx(k_values, accuracies, 'b-', label='Accuracy')
-    plt.semilogx(k_values, f1_scores, 'r-', label='F1 Score')
-    plt.xlabel('Smoothing Parameter (k)')
-    plt.ylabel('Score')
-    plt.title('Impact of Smoothing Parameter on Model Performance')
-    plt.grid(True)
-    plt.legend()
+    # Plot accuracy and F1 scores
+    ax.semilogx(k_values, accuracies, 'b-o', label='Accuracy')
+    ax.semilogx(k_values, f1_scores, 'r-o', label='F1 Score')
     
-    # Save the plot
-    plt.savefig('smoothing_analysis.png')
+    # Customize plot
+    ax.set_xlabel('Smoothing Parameter (k)')
+    ax.set_ylabel('Score')
+    ax.set_title('Impact of Smoothing Parameter on Model Performance')
+    ax.grid(True)
+    ax.legend()
+    
+    # Add value labels
+    for i, k in enumerate(k_values):
+        ax.annotate(f'{accuracies[i]:.3f}', 
+                   (k, accuracies[i]), 
+                   textcoords="offset points", 
+                   xytext=(0,10), 
+                   ha='center')
+        ax.annotate(f'{f1_scores[i]:.3f}', 
+                   (k, f1_scores[i]), 
+                   textcoords="offset points", 
+                   xytext=(0,-15), 
+                   ha='center')
+    
+    # Save plot
+    plt.savefig('smoothing_impact.png', bbox_inches='tight', dpi=300)
     plt.close()
     
-    # Print best results
-    best_k_acc = k_values[np.argmax(accuracies)]
-    best_k_f1 = k_values[np.argmax(f1_scores)]
-    print(f"Best k for accuracy: {best_k_acc:.3f} (accuracy: {max(accuracies):.3f})")
-    print(f"Best k for F1 score: {best_k_f1:.3f} (F1 score: {max(f1_scores):.3f})")
-
-
+    # Return best accuracy and corresponding k value
+    best_acc = max(accuracies)
+    best_k = k_values[accuracies.index(best_acc)]
+    
+    print(f"\nBest accuracy {best_acc:.4f} achieved with k={best_k}")
+    
+    return best_acc, best_k
 
 def train_feature_eng(train_data, test_data):
-    # YOUR CODE HERE
-    #     TODO:
-    #         1) Improve on the basic bag of words model by changing
-    #         the feature list of your model. Implement at least two
-    #         variants using feature1 and feature2
-    ########################### STUDENT SOLUTION ########################
     """
-    Compare different feature engineering approaches.
+    Train and evaluate Naive Bayes models with different feature engineering approaches.
     
     Args:
-        train_data: List of (document, label) tuples for training
-        test_data: List of (document, label) tuples for testing
+        train_data: List of (text, label) tuples for training
+        test_data: List of (text, label) tuples for testing
+    
+    Returns:
+        Dictionary containing evaluation metrics for both feature approaches
     """
-    # Separate documents and labels
-    train_docs, train_labels = zip(*train_data)
-    test_docs, test_labels = zip(*test_data)
-    
-    # Define feature engineering approaches
-    feature_approaches = {
-        'baseline': lambda x: x,  # Original features
-        'stopwords_stem': features1,  # Stopwords removal + stemming
-        'pos_bigrams': features2  # POS tags + bigrams
-    }
-    
-    # Results storage
     results = {}
+    k = 1  # smoothing parameter
     
-    # Test each feature engineering approach
-    for name, feature_func in feature_approaches.items():
-        # Process features
-        X_train = [feature_func(doc) for doc in train_docs]
-        X_test = [feature_func(doc) for doc in test_docs]
-        
-        # Train classifier
-        clf = NaiveBayes(k=1.0)  # Using default k=1.0
-        clf.fit(X_train, train_labels)
-        
-        # Evaluate
-        test_data_processed = list(zip(X_test, test_labels))
-        acc = accuracy(clf, test_data_processed)
-        f1 = f_1(clf, test_data_processed)
-        
-        results[name] = {'accuracy': acc, 'f1': f1}
+    # Test Feature Set 1: Binary Features
+    print("\nTesting Feature Set 1: Binary Features (Word Presence)")
+    class_priors, word_probs, vocab = features1(train_data, k)
+    model1 = NaiveBayes(class_priors, word_probs, vocab)
     
-    # Plot results
-    plt.figure(figsize=(10, 6))
+    # Calculate F1 score for binary features
+    f1_binary = f_1(model1, test_data)
+    results['binary_features'] = {'f1': f1_binary}
+    print(f"F1 Score (Binary Features): {f1_binary:.4f}")
     
-    # Create grouped bar chart
-    x = np.arange(len(feature_approaches))
-    width = 0.35
+    # Test Feature Set 2: Unigrams + Bigrams
+    print("\nTesting Feature Set 2: Unigrams + Bigrams")
+    class_priors, word_probs, vocab = features2(train_data, k)
+    model2 = NaiveBayes(class_priors, word_probs, vocab)
     
-    plt.bar(x - width/2, 
-           [results[k]['accuracy'] for k in feature_approaches], 
-           width, 
-           label='Accuracy')
-    plt.bar(x + width/2, 
-           [results[k]['f1'] for k in feature_approaches], 
-           width, 
-           label='F1 Score')
-    
-    plt.xlabel('Feature Engineering Approach')
-    plt.ylabel('Score')
-    plt.title('Comparison of Feature Engineering Approaches')
-    plt.xticks(x, feature_approaches.keys(), rotation=45)
-    plt.legend()
-    plt.tight_layout()
-    
-    # Save the plot
-    plt.savefig('feature_engineering_comparison.png')
-    plt.close()
-    
-    # Print results
-    print("\nFeature Engineering Results:")
-    print("============================")
-    for name, metrics in results.items():
-        print(f"\n{name}:")
-        print(f"Accuracy: {metrics['accuracy']:.3f}")
-        print(f"F1 Score: {metrics['f1']:.3f}")
+    # Calculate F1 score for unigrams + bigrams
+    f1_bigram = f_1(model2, test_data)
+    results['unigram_bigram'] = {'f1': f1_bigram}
+    print(f"F1 Score (Unigrams + Bigrams): {f1_bigram:.4f}")
     
     return results
-
-
 
 def train_logreg(train_data, test_data):
     # YOUR CODE HERE
