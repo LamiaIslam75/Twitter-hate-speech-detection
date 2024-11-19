@@ -2,9 +2,10 @@ import numpy as np
 
 
 class LogReg:
-    def __init__(self, eta=0.01, num_iter=30):
+    def __init__(self, eta=0.01, num_iter=30, C=0.1):
         self.eta = eta
         self.num_iter = num_iter
+        self.C = C
 
     def softmax(self, inputs):
         """

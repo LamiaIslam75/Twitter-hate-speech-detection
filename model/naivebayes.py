@@ -1,10 +1,16 @@
 import math
 from collections import defaultdict, Counter
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from nltk import pos_tag
+import nltk
+
+# Download required NLTK data
+#nltk.download('stopwords')
+#nltk.download('punkt')
+#nltk.download('averaged_perceptron_tagger_eng')
 
 class NaiveBayes(object):
-
-    ######################### STUDENT SOLUTION #########################
-    # YOUR CODE HERE
     def __init__(self, class_priors=None, word_probs=None, vocabulary=None):
         """Initialises a new classifier.
         
@@ -16,9 +22,7 @@ class NaiveBayes(object):
         self.class_priors = class_priors or {}
         self.word_probs = word_probs or {}
         self.vocabulary = vocabulary or set()
-    ####################################################################
-
-
+    
     def predict(self, x):
         """Predicts the class for a document.
 
@@ -28,7 +32,6 @@ class NaiveBayes(object):
         Returns:
             The predicted class, represented as a string.
         """
-        ################## STUDENT SOLUTION ########################
         scores = {}
         
         # Calculate score for each class
@@ -45,7 +48,6 @@ class NaiveBayes(object):
         
         # Return class with highest score
         return max(scores.items(), key=lambda x: x[1])[0]
-        ############################################################
 
 
     @classmethod
@@ -61,7 +63,6 @@ class NaiveBayes(object):
         Returns:
             A trained classifier, an instance of `cls`.
         """
-        ##################### STUDENT SOLUTION #####################
         # Initialize counters
         class_counts = Counter()
         word_counts = defaultdict(Counter)
@@ -92,10 +93,9 @@ class NaiveBayes(object):
                 denominator = total_words + k * vocab_size
                 word_probs[label][word] = numerator / denominator
 
-        return cls(class_priors, word_probs, vocabulary)
-        ############################################################      
+        return cls(class_priors, word_probs, vocabulary)   
 
-def features1(data, k=1):
+def features4(data, k=1):
     """
     Your feature of choice for Naive Bayes classifier.
 
@@ -107,7 +107,6 @@ def features1(data, k=1):
         Parameters for Naive Bayes classifier, which can
         then be used to initialize `NaiveBayes()` class
     """
-    ###################### STUDENT SOLUTION ##########################
     # Convert data to binary features (word presence)
     binary_data = [(list(set(text)), label) for text, label in data]
     
@@ -115,10 +114,9 @@ def features1(data, k=1):
     classifier = NaiveBayes.train(binary_data, k)
     
     return classifier.class_priors, classifier.word_probs, classifier.vocabulary
-    ##################################################################
 
 
-def features2(data, k=1):
+def features3(data, k=1):
     """
     Your feature of choice for Naive Bayes classifier.
 
@@ -130,7 +128,6 @@ def features2(data, k=1):
         Parameters for Naive Bayes classifier, which can
         then be used to initialize `NaiveBayes()` class
     """
-    ###################### STUDENT SOLUTION ##########################
     # Create data with unigrams and bigrams
     processed_data = []
     for text, label in data:
@@ -148,5 +145,81 @@ def features2(data, k=1):
     classifier = NaiveBayes.train(processed_data, k)
     
     return classifier.class_priors, classifier.word_probs, classifier.vocabulary
-    ##################################################################
 
+
+
+
+def features1(data, k=1):
+    """
+    Feature engineering using minimal preprocessing and binary features.
+    Keeps important stop words and uses word presence rather than frequency.
+    """
+    # List of stop words to remove (keep potentially important ones)
+    stop_words = set(stopwords.words('english'))
+    important_words = {
+        # Negation words
+        'not', 'no', 'never', 'none', 'nobody', 'nothing',
+        
+        # Intensifiers
+        'very', 'so', 'too', 'more', 'most'
+    }
+    stop_words = stop_words - important_words
+    
+    processed_data = []
+    for text, label in data:
+        # Keep original case for offensive terms
+        # Only remove very common stop words
+        processed_text = [
+            word for word in text 
+            if word.lower() not in stop_words or word.lower() in important_words
+        ]
+        # Convert to binary features (presence/absence)
+        binary_features = list(set(processed_text))
+        processed_data.append((binary_features, label))
+    
+    classifier = NaiveBayes.train(processed_data, k)
+    return classifier.class_priors, classifier.word_probs, classifier.vocabulary
+
+def features2(data, k=1):
+    """
+    Feature engineering focusing on offensive language patterns.
+    Creates bigrams when:
+    1. An intensifier is followed by any word
+    2. A negation word is followed by any word
+    3. Any word followed by offensive-indicating words
+    """
+    # Words that often modify the intensity or sentiment
+    intensifiers = {
+        'so', 'really', 'very', 'too', 'more', 'most',
+        'absolutely', 'totally', 'completely'
+    }
+    
+    # Negation words that might modify meaning
+    negations = {
+        'not', 'no', 'never', 'none', 'nothing', 
+        'nobody', "don't", "doesn't", "didn't"
+    }
+    
+    processed_data = []
+    
+    for text, label in data:
+        features = []
+        # Keep original words
+        features.extend(text)
+        
+        # Add bigrams for specific patterns
+        for i in range(len(text) - 1):
+            word = text[i].lower()
+            next_word = text[i+1].lower()
+            
+            # Create bigrams if:
+            # 1. First word is an intensifier
+            # 2. First word is a negation
+            if (word in intensifiers or word in negations):
+                bigram = f"{text[i]}_{text[i+1]}"
+                features.append(bigram)
+        
+        processed_data.append((features, label))
+    
+    classifier = NaiveBayes.train(processed_data, k)
+    return classifier.class_priors, classifier.word_probs, classifier.vocabulary
