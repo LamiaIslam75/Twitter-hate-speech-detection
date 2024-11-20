@@ -2,7 +2,7 @@ import matplotlib
 matplotlib.use('Agg')  # Set backend to non-interactive
 import matplotlib.pyplot as plt
 import numpy as np
-from model.naivebayes import NaiveBayes, features1, features2
+from model.naivebayes import NaiveBayes, features1, features2, features3
 from model.logreg import LogReg, featurize, buildw2i
 from evaluation import accuracy, f_1
 from pathlib import Path
@@ -84,81 +84,60 @@ def train_feature_eng(train_data, test_data):
     """
     Train and evaluate Naive Bayes models with different feature engineering approaches.
     
-    Feature Set 1: Stemming + Stop Words Removal
-    - Motivation: Reduces word variations and removes common words that don't carry
-      significant meaning for hate speech detection. This helps focus on the most
-      relevant content words.
-    
-    Feature Set 2: POS Tags + Bigrams
-    - Motivation: Captures both grammatical context (through POS tags) and local word
-      patterns (through bigrams) that might be indicative of offensive content.
-    
     Args:
         train_data: List of (text, label) tuples for training
         test_data: List of (text, label) tuples for testing
     
     Returns:
-        Dictionary containing evaluation metrics for both feature approaches
+        Dictionary containing evaluation metrics for feature approaches
     """
     results = {}
     k = 1  # smoothing parameter
     
-    # Test Feature Set 1: Stemming + Stop Words Removal
-    print("\nTesting Feature Set 1: Stemming + Stop Words Removal")
+    # Test Feature Set 1: Stop Words Removal
+    print("\nTesting Feature Set 1: Stop Words Removal")
     class_priors, word_probs, vocab = features1(train_data, k)
     model1 = NaiveBayes(class_priors, word_probs, vocab)
     
     acc_stem_stop = accuracy(model1, test_data)
     f1_stem_stop = f_1(model1, test_data)
-    results['stemming_stopwords'] = {
+    results['stopwords'] = {
         'accuracy': acc_stem_stop,
         'f1': f1_stem_stop,
-        'description': 'Stemming + Stop Words Removal'
+        'description': 'Stop Words Removal'
     }
-    print(f"Accuracy: {acc_stem_stop:.4f}")
-    print(f"F1 Score: {f1_stem_stop:.4f}")
+    print(f"Accuracy: {acc_stem_stop:.3f}")
+    print(f"F_1: {f1_stem_stop:.3f}")
     
-    # Test Feature Set 2: POS Tags + Bigrams
-    print("\nTesting Feature Set 2: POS Tags + Bigrams")
+    # Test Feature Set 2: Bigrams
+    print("\nTesting Feature Set 2: Bigrams")
     class_priors, word_probs, vocab = features2(train_data, k)
     model2 = NaiveBayes(class_priors, word_probs, vocab)
     
     acc_pos_bigram = accuracy(model2, test_data)
     f1_pos_bigram = f_1(model2, test_data)
-    results['pos_bigrams'] = {
+    results['bigrams'] = {
         'accuracy': acc_pos_bigram,
         'f1': f1_pos_bigram,
-        'description': 'POS Tags + Bigrams'
+        'description': 'Bigrams'
     }
-    print(f"Accuracy: {acc_pos_bigram:.4f}")
-    print(f"F1 Score: {f1_pos_bigram:.4f}")
+    print(f"Accuracy: {acc_pos_bigram:.3f}")
+    print(f"F_1: {f1_pos_bigram:.3f}")
+
+     # Test Feature Set 2: Bigrams
+    print("\nTesting Feature Set 3: Stemming")
+    class_priors, word_probs, vocab = features3(train_data, k)
+    model3 = NaiveBayes(class_priors, word_probs, vocab)
     
-    # Print comparative analysis
-    print("\nComparative Analysis:")
-    print("-" * 50)
-    print("Feature Set Comparison:")
-    print(f"{'Feature Set':<25} {'Accuracy':>10} {'F1 Score':>10}")
-    print("-" * 50)
-    print(f"Stemming + Stop Words    {acc_stem_stop:>10.4f} {f1_stem_stop:>10.4f}")
-    print(f"POS Tags + Bigrams      {acc_pos_bigram:>10.4f} {f1_pos_bigram:>10.4f}")
-    print("-" * 50)
-    
-    # Calculate and print improvement metrics
-    acc_diff = acc_pos_bigram - acc_stem_stop
-    f1_diff = f1_pos_bigram - f1_stem_stop
-    
-    print("\nPerformance Difference (Feature Set 2 - Feature Set 1):")
-    print(f"Accuracy Difference: {acc_diff:>6.4f}")
-    print(f"F1 Score Difference: {f1_diff:>6.4f}")
-    
-    # Determine best performing feature set
-    best_acc = max(acc_stem_stop, acc_pos_bigram)
-    best_f1 = max(f1_stem_stop, f1_pos_bigram)
-    best_set = "Stemming + Stop Words" if acc_stem_stop > acc_pos_bigram else "POS Tags + Bigrams"
-    
-    print(f"\nBest Performing Feature Set: {best_set}")
-    print(f"Best Accuracy: {best_acc:.4f}")
-    print(f"Best F1 Score: {best_f1:.4f}")
+    acc_stem = accuracy(model3, test_data)
+    f1_stem = f_1(model3, test_data)
+    results['bigrams'] = {
+        'accuracy': acc_stem,
+        'f1': f1_stem,
+        'description': 'Stemming'
+    }
+    print(f"Accuracy: {acc_stem:.3f}")
+    print(f"F_1: {f1_stem:.3f}")
     
     return results
 
@@ -178,7 +157,7 @@ def train_logreg(train_data, test_data):
     X_train, Y_train = featurize(train_data)
     
     # 2. Initialize and train logistic regression model
-    model = LogReg(eta=0.01, num_iter=10)  # default learning rate, 10 iterations
+    model = LogReg(eta=0.01, num_iter=10, C=0.1)
     model.train(X_train, Y_train)
     
     # 3. Create a wrapper class to match the classifier interface expected by

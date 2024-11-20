@@ -1,2 +1,3 @@
-matplotlib
-nltk
+matplotlib==3.9.2
+nltk==3.9.1
+numpy==2.1.3

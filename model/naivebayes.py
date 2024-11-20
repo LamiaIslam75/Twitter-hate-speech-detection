@@ -1,14 +1,20 @@
 import math
 from collections import defaultdict, Counter
 from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer
-from nltk import pos_tag
 import nltk
+from nltk.stem import PorterStemmer
 
-# Download required NLTK data
-#nltk.download('stopwords')
-#nltk.download('punkt')
-#nltk.download('averaged_perceptron_tagger_eng')
+# Download required NLTK data if not already downloaded
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
+
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+
 
 class NaiveBayes(object):
     def __init__(self, class_priors=None, word_probs=None, vocabulary=None):
@@ -95,64 +101,18 @@ class NaiveBayes(object):
 
         return cls(class_priors, word_probs, vocabulary)   
 
-def features4(data, k=1):
-    """
-    Your feature of choice for Naive Bayes classifier.
-
-    Args:
-        data: Training data.
-        k: The smoothing constant.
-
-    Returns:
-        Parameters for Naive Bayes classifier, which can
-        then be used to initialize `NaiveBayes()` class
-    """
-    # Convert data to binary features (word presence)
-    binary_data = [(list(set(text)), label) for text, label in data]
-    
-    # Train classifier with binary features
-    classifier = NaiveBayes.train(binary_data, k)
-    
-    return classifier.class_priors, classifier.word_probs, classifier.vocabulary
-
-
-def features3(data, k=1):
-    """
-    Your feature of choice for Naive Bayes classifier.
-
-    Args:
-        data: Training data.
-        k: The smoothing constant.
-
-    Returns:
-        Parameters for Naive Bayes classifier, which can
-        then be used to initialize `NaiveBayes()` class
-    """
-    # Create data with unigrams and bigrams
-    processed_data = []
-    for text, label in data:
-        # Add unigrams
-        features = text.copy()
-        
-        # Add bigrams
-        for i in range(len(text) - 1):
-            bigram = f"{text[i]}_{text[i+1]}"
-            features.append(bigram)
-            
-        processed_data.append((features, label))
-    
-    # Train classifier with enhanced features
-    classifier = NaiveBayes.train(processed_data, k)
-    
-    return classifier.class_priors, classifier.word_probs, classifier.vocabulary
-
-
-
 
 def features1(data, k=1):
     """
     Feature engineering using minimal preprocessing and binary features.
     Keeps important stop words and uses word presence rather than frequency.
+
+    Args:
+        data: List of (text, label) tuples where text is a list of words
+        k: Smoothing parameter for Naive Bayes (default=1)
+        
+    Returns:
+        Tuple of (class_priors, word_probs, vocabulary)
     """
     # List of stop words to remove (keep potentially important ones)
     stop_words = set(stopwords.words('english'))
@@ -180,24 +140,36 @@ def features1(data, k=1):
     classifier = NaiveBayes.train(processed_data, k)
     return classifier.class_priors, classifier.word_probs, classifier.vocabulary
 
+
 def features2(data, k=1):
     """
     Feature engineering focusing on offensive language patterns.
     Creates bigrams when:
     1. An intensifier is followed by any word
     2. A negation word is followed by any word
-    3. Any word followed by offensive-indicating words
+
+    Args:
+        data: List of (text, label) tuples where text is a list of words
+        k: Smoothing parameter for Naive Bayes (default=1)
+        
+    Returns:
+        Tuple of (class_priors, word_probs, vocabulary)
     """
     # Words that often modify the intensity or sentiment
     intensifiers = {
         'so', 'really', 'very', 'too', 'more', 'most',
-        'absolutely', 'totally', 'completely'
+        'absolutely', 'totally', 'completely', 'literally',
+        'extremely', 'incredibly', 'highly', 'super',
+        'extra'
     }
     
     # Negation words that might modify meaning
     negations = {
         'not', 'no', 'never', 'none', 'nothing', 
-        'nobody', "don't", "doesn't", "didn't"
+        'nobody', "don't", "doesn't", "didn't",
+        'ain\'t', 'cannot', 'cant', 'won\'t',
+        'wouldn\'t', 'shouldn\'t', 'haven\'t',
+        'hasn\'t', 'neither', 'nor'
     }
     
     processed_data = []
@@ -210,7 +182,6 @@ def features2(data, k=1):
         # Add bigrams for specific patterns
         for i in range(len(text) - 1):
             word = text[i].lower()
-            next_word = text[i+1].lower()
             
             # Create bigrams if:
             # 1. First word is an intensifier
@@ -221,5 +192,38 @@ def features2(data, k=1):
         
         processed_data.append((features, label))
     
+    classifier = NaiveBayes.train(processed_data, k)
+    return classifier.class_priors, classifier.word_probs, classifier.vocabulary
+
+
+
+def features3(data, k=1):
+    """
+    Feature engineering using Porter Stemming to reduce words to their root form.
+    This helps in grouping different forms of the same word together.
+    
+    Args:
+        data: List of (text, label) tuples where text is a list of words
+        k: Smoothing parameter for Naive Bayes (default=1)
+        
+    Returns:
+        Tuple of (class_priors, word_probs, vocabulary)
+    """
+    # Initialize Porter Stemmer
+    stemmer = PorterStemmer()
+    
+    processed_data = []
+    for text, label in data:
+        # Stem each word in the text
+        processed_text = [
+            stemmer.stem(word.lower())  # Convert to lowercase before stemming
+            for word in text
+        ]
+        
+        # Convert to binary features (presence/absence)
+        binary_features = list(set(processed_text))
+        processed_data.append((binary_features, label))
+    
+    # Train the classifier with processed data
     classifier = NaiveBayes.train(processed_data, k)
     return classifier.class_priors, classifier.word_probs, classifier.vocabulary

@@ -2,7 +2,7 @@ import numpy as np
 
 
 class LogReg:
-    def __init__(self, eta=0.01, num_iter=30, C=0.1):
+    def __init__(self, eta=0.01, num_iter=10, C=0.1):
         self.eta = eta
         self.num_iter = num_iter
         self.C = C
@@ -57,10 +57,6 @@ class LogReg:
 
 
     def p(self, X):
-        # YOUR CODE HERE
-        #     TODO:
-        #         1) Fill in (log) probability prediction
-        ################## STUDENT SOLUTION ########################
         """
         Calculate probability distributions for input instances
         :param X: N x F matrix of features
@@ -68,14 +64,8 @@ class LogReg:
         """
         scores = np.dot(X, self.weights)
         return self.softmax(scores)
-        ############################################################
-
 
     def predict(self, X):
-        # YOUR CODE HERE
-        #     TODO:
-        #         1) Replace next line with prediction of best class
-        ####################### STUDENT SOLUTION ####################
         """
         Predict classes for input instances
         :param X: N x F matrix of features
@@ -83,7 +73,6 @@ class LogReg:
         """
         probs = self.p(X)
         return np.argmax(probs, axis=1)
-        #############################################################
 
 
 def buildw2i(vocab):
@@ -96,10 +85,7 @@ def buildw2i(vocab):
     Returns:
         Dictionaries with word as the key and index as its value.
     """
-    # YOUR CODE HERE
-    #################### STUDENT SOLUTION ######################
     return {word: idx for idx, word in enumerate(sorted(vocab))}
-    ############################################################
 
 
 def featurize(data, train_data=None):
@@ -114,9 +100,6 @@ def featurize(data, train_data=None):
     Returns:
         Matrix X and Y.
     """
-    # YOUR CODE HERE
-    ##################### STUDENT SOLUTION #######################
-    # Build vocabulary from training data
     if train_data is None:
         train_data = data
     
@@ -146,5 +129,5 @@ def featurize(data, train_data=None):
             Y[i] = [0, 1]
     
     return X, Y
-    ##############################################################
+
 
